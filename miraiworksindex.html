@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DX共創プラットフォーム「Mirai Works」モックアップ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', 'Noto Sans JP', sans-serif; }
+        .tab-active { border-bottom-color: #4f46e5; color: #4f46e5; }
+        .tab-inactive { border-bottom-color: transparent; color: #6b7280; }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .modal-overlay {
+            transition: opacity 0.3s ease;
+        }
+        .modal-content {
+            transition: transform 0.3s ease;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800" x-data="platform()">
+    <!-- ヘッダー -->
+    <header class="bg-white shadow-sm sticky top-0 z-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center py-4">
+                <div class="flex items-center space-x-2">
+                    <svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547a2 2 0 00-.547 1.806l.477 2.387a6 6 0 00.517 3.86l.158.318a6 6 0 00.517 3.86l2.387.477a2 2 0 001.806-.547a2 2 0 00.547-1.806l-.477-2.387a6 6 0 00-.517-3.86l-.158-.318a6 6 0 00-.517-3.86l-2.387-.477zM12 12a6 6 0 01-6-6V2.5a2 2 0 012-2h4a2 2 0 012 2V6a6 6 0 01-6 6z"></path></svg>
+                    <h1 class="text-2xl font-bold text-gray-900">Mirai Works</h1>
+                </div>
+                 <button @click="showIdeaForm = true" class="hidden sm:flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                    アイデアを投稿する
+                </button>
+            </div>
+            <!-- ナビゲーションタブ -->
+            <nav class="border-b border-gray-200">
+                <ul class="flex -mb-px">
+                    <li class="mr-2">
+                        <button @click="activeTab = 'dashboard'" :class="activeTab === 'dashboard' ? 'tab-active' : 'tab-inactive'" class="inline-block py-3 px-4 text-sm font-medium text-center rounded-t-lg border-b-2">ダッシュボード</button>
+                    </li>
+                    <li class="mr-2">
+                        <button @click="activeTab = 'seeds'" :class="activeTab === 'seeds' ? 'tab-active' : 'tab-inactive'" class="inline-block py-3 px-4 text-sm font-medium text-center rounded-t-lg border-b-2">
+                            🌱 ミライの種 <span class="text-xs ml-1 px-2 py-0.5 bg-green-100 text-green-800 rounded-full" x-text="ideas.length"></span>
+                        </button>
+                    </li>
+                    <li class="mr-2">
+                        <button @click="activeTab = 'library'" :class="activeTab === 'library' ? 'tab-active' : 'tab-inactive'" class="inline-block py-3 px-4 text-sm font-medium text-center rounded-t-lg border-b-2">
+                            📚 DXチャレンジ・ライブラリー <span class="text-xs ml-1 px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full" x-text="projects.length"></span>
+                        </button>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- ダッシュボード画面 -->
+        <div x-show="activeTab === 'dashboard'" class="fade-in space-y-8">
+            <div>
+                <h2 class="text-3xl font-bold text-gray-900">ようこそ、Mirai Worksへ！</h2>
+                <p class="mt-2 text-lg text-gray-600">現場のアイデアと全社の挑戦を繋ぎ、未来の働き方をみんなで創りましょう。</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- ミライの種セクション -->
+                <section class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-bold flex items-center mb-4">🌱 注目のアイデア Top 3</h3>
+                    <div class="space-y-4">
+                        <template x-for="idea in topIdeas" :key="idea.id">
+                            <div @click="openIdeaModal(idea)" class="p-4 border rounded-lg hover:shadow-lg hover:border-indigo-500 cursor-pointer transition">
+                                <p class="font-semibold text-gray-800" x-text="idea.title"></p>
+                                <div class="flex items-center justify-between mt-2 text-sm text-gray-500">
+                                    <span x-text="`投稿者: ${idea.author}`"></span>
+                                    <div class="flex items-center">
+                                        <svg class="w-4 h-4 text-red-500 mr-1" fill="currentColor" viewBox="0 0 20 20"><path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"></path></svg>
+                                        <span x-text="idea.likes"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </section>
+                <!-- DXチャレンジ・ライブラリーセクション -->
+                <section class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-bold flex items-center mb-4">📚 最近完了したDXチャレンジ</h3>
+                    <div class="space-y-4">
+                        <template x-for="project in recentProjects" :key="project.id">
+                            <div @click="openProjectModal(project)" class="p-4 border rounded-lg hover:shadow-lg hover:border-indigo-500 cursor-pointer transition">
+                                <div class="flex items-center justify-between">
+                                    <p class="font-semibold text-gray-800" x-text="project.title"></p>
+                                    <span class="text-xs font-medium px-2.5 py-1 rounded-full" :class="project.status === '完了' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'" x-text="project.status"></span>
+                                </div>
+                                <p class="mt-1 text-sm text-gray-600 truncate" x-text="project.summary"></p>
+                            </div>
+                        </template>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <!-- ミライの種 画面 -->
+        <div x-show="activeTab === 'seeds'" class="fade-in">
+            <!-- フィルター -->
+            <div class="bg-white p-4 rounded-lg shadow-md mb-6 flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm font-medium">カテゴリ:</span>
+                    <select class="rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                        <option>すべて</option>
+                        <option>業務効率化</option>
+                        <option>コスト削減</option>
+                        <option>新ツール導入</option>
+                    </select>
+                </div>
+                <div class="flex items-center space-x-2">
+                     <span class="text-sm font-medium">並び替え:</span>
+                    <button class="px-3 py-1 text-sm rounded-md bg-gray-200">新着順</button>
+                    <button class="px-3 py-1 text-sm rounded-md hover:bg-gray-100">いいね！順</button>
+                </div>
+            </div>
+            <!-- アイデアカード一覧 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <template x-for="idea in ideas" :key="idea.id">
+                    <div @click="openIdeaModal(idea)" class="bg-white rounded-lg shadow-md p-6 cursor-pointer hover:shadow-xl transition-shadow duration-300 flex flex-col justify-between">
+                        <div>
+                           <div class="flex justify-between items-start">
+                                <h4 class="text-lg font-bold text-gray-900" x-text="idea.title"></h4>
+                                <span class="text-xs font-medium px-2.5 py-1 rounded-full" :class="getIdeaStatusClass(idea.status)" x-text="idea.status"></span>
+                           </div>
+                            <p class="mt-2 text-sm text-gray-600" x-text="idea.summary"></p>
+                        </div>
+                        <div class="flex items-center justify-between mt-6 text-sm text-gray-500">
+                            <span x-text="`投稿者: ${idea.author} (${idea.department})`"></span>
+                            <div class="flex items-center space-x-4">
+                               <div class="flex items-center">
+                                    <svg class="w-4 h-4 text-gray-400 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.948 8.948 0 01-4.131-.983L2.25 17.75a.75.75 0 01-1-1.06l1.668-3.483A8.953 8.953 0 012 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM4.5 10a.75.75 0 000-1.5h.01a.75.75 0 000 1.5H4.5zm4.25 0a.75.75 0 000-1.5h.01a.75.75 0 000 1.5H8.75zm4.25 0a.75.75 0 000-1.5h.01a.75.75 0 000 1.5h-.01z" clip-rule="evenodd"></path></svg>
+                                    <span x-text="idea.comments"></span>
+                                </div>
+                                <div class="flex items-center">
+                                    <svg class="w-4 h-4 text-red-500 mr-1" fill="currentColor" viewBox="0 0 20 20"><path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"></path></svg>
+                                    <span x-text="idea.likes"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <!-- DXチャレンジ・ライブラリー 画面 -->
+        <div x-show="activeTab === 'library'" class="fade-in">
+             <!-- フィルター -->
+            <div class="bg-white p-4 rounded-lg shadow-md mb-6 flex items-center justify-between flex-wrap gap-4">
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm font-medium">部署:</span>
+                    <select class="rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                        <option>すべて</option>
+                        <option>営業本部</option>
+                        <option>開発部</option>
+                        <option>人事部</option>
+                    </select>
+                </div>
+                <div class="flex items-center space-x-2">
+                     <span class="text-sm font-medium">タグ:</span>
+                     <span class="text-xs cursor-pointer px-2 py-1 bg-gray-200 text-gray-700 rounded-full">#AI</span>
+                     <span class="text-xs cursor-pointer px-2 py-1 bg-gray-200 text-gray-700 rounded-full">#RPA</span>
+                </div>
+                <!-- ★ 公開・非公開トグルスイッチ ★ -->
+                <div class="flex items-center space-x-2">
+                    <span class="text-sm font-medium text-gray-700">一般公開ビュー</span>
+                    <button @click="isInternalView = !isInternalView" :class="isInternalView ? 'bg-indigo-600' : 'bg-gray-200'" class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none">
+                        <span :class="isInternalView ? 'translate-x-5' : 'translate-x-0'" class="inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>
+                    </button>
+                    <span class="text-sm font-medium text-indigo-600">DX部門内ビュー</span>
+                </div>
+            </div>
+            <!-- プロジェクトカード一覧 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                 <template x-for="project in projects" :key="project.id">
+                    <div x-show="isInternalView || project.isPublic" @click="openProjectModal(project)" class="bg-white rounded-lg shadow-md p-6 cursor-pointer hover:shadow-xl transition-shadow duration-300 flex flex-col justify-between">
+                        <div>
+                            <div class="flex justify-between items-start">
+                                <h4 class="text-lg font-bold text-gray-900" x-text="project.title"></h4>
+                                <div class="flex-shrink-0 flex items-center space-x-2">
+                                    <!-- ★ 非公開バッジ ★ -->
+                                    <span x-show="!project.isPublic && isInternalView" class="text-xs font-medium px-2.5 py-1 rounded-full bg-gray-100 text-gray-700">非公開</span>
+                                    <span class="text-xs font-medium px-2.5 py-1 rounded-full" :class="project.status === '完了' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'" x-text="project.status"></span>
+                                </div>
+                            </div>
+                            <div class="mt-2">
+                                <template x-for="tag in project.tags" :key="tag">
+                                    <span class="text-xs mr-1 px-2 py-0.5 bg-gray-200 text-gray-700 rounded-full" x-text="`#${tag}`"></span>
+                                </template>
+                            </div>
+                            <p class="mt-2 text-sm text-gray-600" x-text="project.summary"></p>
+                        </div>
+                        <div class="flex items-center justify-between mt-6 text-sm text-gray-500">
+                           <span x-text="`担当部署: ${project.department}`"></span>
+                           <span x-text="`完了日: ${project.completedDate}`"></span>
+                        </div>
+                    </div>
+                 </template>
+            </div>
+        </div>
+    </main>
+
+    <!-- アイデア詳細モーダル -->
+    <div x-show="showIdeaModal" @keydown.escape.window="showIdeaModal = false" class="fixed inset-0 z-30 overflow-y-auto" x-cloak>
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div x-show="showIdeaModal" @click="showIdeaModal = false" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75 modal-overlay" aria-hidden="true"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div x-show="showIdeaModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full modal-content">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4" x-show="selectedIdea.id">
+                    <div class="sm:flex sm:items-start">
+                        <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-green-100 sm:mx-0 sm:h-10 sm:w-10">
+                             🌱
+                        </div>
+                        <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                            <h3 class="text-xl leading-6 font-bold text-gray-900" x-text="selectedIdea.title"></h3>
+                            <div class="mt-2 flex items-center space-x-4 text-sm text-gray-500">
+                                <span x-text="`投稿者: ${selectedIdea.author} (${selectedIdea.department})`"></span>
+                                <span class="text-xs font-medium px-2.5 py-1 rounded-full" :class="getIdeaStatusClass(selectedIdea.status)" x-text="selectedIdea.status"></span>
+                            </div>
+                            <div class="mt-4 space-y-4 text-gray-700">
+                                <div>
+                                    <h4 class="font-semibold">💡 どんなアイデア？</h4>
+                                    <p class="mt-1" x-text="selectedIdea.summary"></p>
+                                </div>
+                                <div x-show="selectedIdea.link_to_project">
+                                     <h4 class="font-semibold">🚀 プロジェクト化されました！</h4>
+                                     <button @click="jumpToProject(selectedIdea.link_to_project)" class="mt-1 text-indigo-600 hover:text-indigo-800 font-medium">
+                                        → DXチャレンジ・ライブラリーで進捗を見る
+                                     </button>
+                                </div>
+                            </div>
+                            <hr class="my-4">
+                            <div>
+                                <h4 class="font-semibold mb-2">💬 コメント (<span x-text="selectedIdea.comments"></span>)</h4>
+                                <div class="text-sm space-y-2">
+                                    <p><b>営業部 佐藤:</b> これは素晴らしい！ぜひ私たちの部署でも使いたいです。</p>
+                                    <p><b>開発部 鈴木:</b> 技術的には実現可能だと思います。詳細を伺いたいです。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse items-center" x-show="selectedIdea.id">
+                    <button type="button" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm items-center">
+                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20"><path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"></path></svg>
+                        いいね！ (<span x-text="selectedIdea.likes"></span>)
+                    </button>
+                    <button @click="showIdeaModal = false" type="button" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                        閉じる
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- プロジェクト詳細モーダル -->
+     <div x-show="showProjectModal" @keydown.escape.window="showProjectModal = false" class="fixed inset-0 z-30 overflow-y-auto" x-cloak>
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div x-show="showProjectModal" @click="showProjectModal = false" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75 modal-overlay" aria-hidden="true"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div x-show="showProjectModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full modal-content">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4" x-show="selectedProject.id">
+                    <div class="sm:flex sm:items-start">
+                        <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
+                             📚
+                        </div>
+                        <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                            <h3 class="text-xl leading-6 font-bold text-gray-900" x-text="selectedProject.title"></h3>
+                            <div class="mt-2 flex items-center space-x-4 text-sm text-gray-500">
+                                <span x-text="`担当部署: ${selectedProject.department}`"></span>
+                                <span class="text-xs font-medium px-2.5 py-1 rounded-full" :class="selectedProject.status === '完了' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'" x-text="selectedProject.status"></span>
+                                <!-- ★ 公開/非公開ステータス ★ -->
+                                <span x-show="isInternalView" x-text="selectedProject.isPublic ? '公開中' : '非公開'" :class="selectedProject.isPublic ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'" class="text-xs font-medium px-2.5 py-1 rounded-full"></span>
+                            </div>
+                            <div class="mt-4 space-y-4 text-gray-700">
+                                <!-- ★ 課題と目的 (詳細/要約トグル) ★ -->
+                                <div>
+                                    <div class="flex justify-between items-center">
+                                        <h4 class="font-semibold">🎯 課題と目的</h4>
+                                        <button x-show="isInternalView" @click="showDetailedObjective = !showDetailedObjective" class="text-sm text-indigo-600 hover:text-indigo-800" x-text="showDetailedObjective ? '要約を表示' : '詳細を表示'"></button>
+                                    </div>
+                                    <p class="mt-1" x-text="showDetailedObjective && isInternalView ? selectedProject.detailedObjective : selectedProject.objective"></p>
+                                </div>
+                                 <!-- ★ 成果と効果 (詳細/要約トグル) ★ -->
+                                 <div>
+                                    <div class="flex justify-between items-center">
+                                        <h4 class="font-semibold">🏆 成果と効果</h4>
+                                        <button x-show="isInternalView" @click="showDetailedResults = !showDetailedResults" class="text-sm text-indigo-600 hover:text-indigo-800" x-text="showDetailedResults ? '要約を表示' : '詳細を表示'"></button>
+                                    </div>
+                                    <ul class="list-disc list-inside mt-1 space-y-1">
+                                       <template x-if="!showDetailedResults || !isInternalView">
+                                            <template x-for="result in selectedProject.results" :key="result">
+                                                <li x-text="result"></li>
+                                            </template>
+                                       </template>
+                                       <template x-if="showDetailedResults && isInternalView">
+                                            <template x-for="result in selectedProject.detailedResults" :key="result">
+                                                <li x-text="result"></li>
+                                            </template>
+                                       </template>
+                                    </ul>
+                                </div>
+                                <!-- ★ DX部門内メモ (内部ビューでのみ表示) ★ -->
+                                <div x-show="isInternalView">
+                                    <hr class="my-4">
+                                    <div>
+                                        <h4 class="font-semibold flex items-center">
+                                            <svg class="w-5 h-5 mr-1 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clip-rule="evenodd"></path></svg>
+                                            DX部門内メモ
+                                        </h4>
+                                        <p class="mt-1 text-sm bg-gray-50 p-3 rounded-md text-gray-600 whitespace-pre-line" x-text="selectedProject.internalMemo"></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse items-center">
+                    <button @click="showProjectModal = false" type="button" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                        閉じる
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- アイデア投稿フォームモーダル（簡易版） -->
+    <div x-show="showIdeaForm" @keydown.escape.window="showIdeaForm = false" class="fixed inset-0 z-40 overflow-y-auto" x-cloak>
+         <div class="flex items-center justify-center min-h-screen px-4">
+            <div x-show="showIdeaForm" @click="showIdeaForm = false" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" aria-hidden="true"></div>
+            <div x-show="showIdeaForm" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95" class="bg-white rounded-lg shadow-xl transform transition-all sm:max-w-lg sm:w-full p-6">
+                <h3 class="text-xl font-bold text-gray-900">新しいアイデアを投稿する</h3>
+                <div class="mt-4 space-y-4">
+                    <div>
+                        <label class="text-sm font-medium">アイデアのタイトル</label>
+                        <input type="text" class="w-full mt-1 p-2 border rounded-md" placeholder="例：請求書処理を自動化したい">
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium">どんなアイデアですか？（概要）</label>
+                        <textarea class="w-full mt-1 p-2 border rounded-md" rows="4" placeholder="現状の課題や、どう改善したいかを書いてください"></textarea>
+                    </div>
+                </div>
+                 <div class="mt-6 flex justify-end space-x-3">
+                    <button @click="showIdeaForm = false" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">キャンセル</button>
+                    <button @click="showIdeaForm = false" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700">投稿する</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function platform() {
+            return {
+                activeTab: 'dashboard',
+                showIdeaModal: false,
+                showProjectModal: false,
+                showIdeaForm: false,
+                isInternalView: true, // ★ DX部門内ビューをデフォルトに
+                showDetailedObjective: false, // ★ 詳細表示トグル用
+                showDetailedResults: false, // ★ 詳細表示トグル用
+                selectedIdea: {},
+                selectedProject: {},
+                ideas: [
+                    { id: 1, title: '請求書処理のAI-OCRによる自動化', summary: '毎月100件以上ある請求書の手入力作業をAI-OCRで自動化し、作業時間を90%削減したい。', author: '田中 太郎', department: '経理部', likes: 128, comments: 15, status: 'プロジェクト化済', link_to_project: 1 },
+                    { id: 2, title: '会議室の予約システムの改善', summary: '空いている会議室を探すのが大変。誰がどの部屋を使っているか一目でわかるシステムが欲しい。', author: '佐藤 花子', department: '営業部', likes: 92, comments: 8, status: '検討中' },
+                    { id: 3, title: '社内報のペーパーレス化', summary: '紙で配布している社内報をオンラインに移行し、印刷コストと配布の手間を削減する。', author: '鈴木 次郎', department: '総務部', likes: 75, comments: 5, status: '受付中' },
+                    { id: 4, title: 'Web会議用のバーチャル背景作成', summary: '自社のロゴや製品が入ったオリジナルのバーチャル背景があれば、顧客との会議でPRになる。', author: '高橋 三郎', department: 'マーケティング部', likes: 45, comments: 3, status: '受付中' },
+                ],
+                projects: [
+                    { id: 1, title: 'AI-OCRによる請求書処理の自動化', summary: '経理部の請求書手入力作業をAI-OCRで自動化するプロジェクト。', department: 'DX推進部門', status: '完了', tags: ['AI', '業務効率化', 'RPA'], completedDate: '2025/09/30', 
+                      objective: '毎月約80時間かかっていた請求書の手入力作業を自動化し、経理部のコア業務への集中を促進する。', // ★ 要約
+                      detailedObjective: '背景: 経理部では毎月100件を超える請求書の処理が発生しており、その多くが紙ベースでの受け取りとなっている。\n担当者2名が目視で内容を確認し、基幹システムへ手入力する作業に月間約80時間を費やしている。この作業は単純労働である一方、入力ミスが許されず、担当者の精神的負担も大きい。\n目的: AI-OCR技術を導入し、請求書の読み取りからシステム入力までのプロセスを自動化する。最終的には手入力作業を95%以上削減し、担当者はより付加価値の高い分析業務や債権管理業務にシフトすることを目指す。', // ★ 詳細
+                      results: ['月間作業時間を80時間 → 5時間に短縮 (93%削減)', '入力ミスによる手戻り件数 ゼロを達成', '年間約300万円のコスト削減効果'], // ★ 要約
+                      detailedResults: ['AI-OCR読取率: 98.5% (目標95%)', 'RPA連携による自動入力成功率: 99.2%', '導入費用: 500万円 (初年度)', 'ROI: 1.5年で回収見込み'], // ★ 詳細
+                      internalMemo: '・xx社のOCRエンジンを採用。決め手は日本語の認識精度と非定型帳票への対応力。\n・RPAロボットの例外処理設計に苦労したが、経理部との週次レビューでパターンを網羅。\n・来期は発注書処理への横展開を検討中。', // ★ 内部メモ
+                      isPublic: true // ★ 公開設定
+                    },
+                    { id: 2, title: '全社SFA（営業支援ツール）導入', summary: '顧客情報と商談履歴を一元管理し、営業活動の効率化とデータ活用を推進。', department: '営業本部', status: '完了', tags: ['SFA', 'データ活用'], completedDate: '2025/08/15', 
+                      objective: '属人化していた顧客情報を一元化し、営業部門全体の生産性を向上させる。', 
+                      detailedObjective: '背景: 営業担当者ごとにExcelや手帳で顧客管理がバラバラになっており、商談履歴の共有も不十分だった。これにより、担当者不在時の対応遅れや、案件の引き継ぎ漏れが発生していた。\n目的: 全社共通のSFAを導入し、顧客情報と商談履歴を一元管理する。営業活動の可視化とデータ分析基盤を構築し、組織的な営業力を強化する。',
+                      results: ['商談化率 15%向上', '報告書作成時間が平均30分/日 削減', '新人営業の早期戦力化に貢献'],
+                      detailedResults: ['SFA定着率: 92%', 'データ入力項目遵守率: 88%', 'マネージャーによるレポート閲覧数: 3倍増'],
+                      internalMemo: '・導入初期の入力負荷に対する現場の抵抗が大きかったが、トップダウンでの呼びかけと、入力メリットの勉強会で定着化に成功。',
+                      isPublic: true 
+                    },
+                    { id: 3, title: 'クラウド型人事評価システムの導入', summary: 'Excelベースの人事評価プロセスをシステム化し、評価業務の効率化と透明性を確保。', department: '人事部', status: '進行中', tags: ['HR Tech', '業務効率化'], completedDate: '2025/12予定', 
+                      objective: '評価シートの回収・集計にかかる工数を削減し、評価者・被評価者双方の負担を軽減する。', // ★ 要約
+                      detailedObjective: '背景: 現在の人事評価はExcelファイルで運用されており、人事部が評価シートの配布、回収、集計を手作業で行っている。評価段階でのバージョン管理が煩雑で、集計ミスも散見される。\nまた、過去の評価履歴がデータとして活用できていない。\n目的: クラウド型の人事評価システムを導入し、評価プロセスのワークフローをシステム化する。これにより、人事および管理職の評価関連工数を50%削減し、評価データの蓄積・分析基盤を構築する。', // ★ 詳細
+                      results: ['進捗中'], // ★ 要約
+                      detailedResults: ['・システム選定完了 (xx社)','・現在、評価項目のマスタ設定作業中 (進捗率 40%)'], // ★ 詳細
+                      internalMemo: '・人事部内の運用フロー見直しと並行して進行中。\n・管理職向けの操作説明会を11月に実施予定。', // ★ 内部メモ
+                      isPublic: false // ★ 非公開設定
+                    },
+                ],
+                get topIdeas() {
+                    return [...this.ideas].sort((a, b) => b.likes - a.likes).slice(0, 3);
+                },
+                get recentProjects() {
+                    return this.projects.filter(p => p.status === '完了' && p.isPublic).slice(0, 3); // ★ 公開案件のみダッシュボードに表示
+                },
+                openIdeaModal(idea) {
+                    this.selectedIdea = idea;
+                    this.showIdeaModal = true;
+                },
+                openProjectModal(project) {
+                    this.selectedProject = project;
+                    this.showDetailedObjective = false; // ★ トグルをリセット
+                    this.showDetailedResults = false; // ★ トグルをリセット
+                    this.showProjectModal = true;
+                },
+                jumpToProject(projectId) {
+                    const project = this.projects.find(p => p.id === projectId);
+                    if (project) {
+                        this.showIdeaModal = false;
+                        this.activeTab = 'library';
+                        // 少し待ってからモーダルを開く
+                        setTimeout(() => {
+                           this.openProjectModal(project);
+                        }, 300);
+                    }
+                },
+                getIdeaStatusClass(status) {
+                    if (status === 'プロジェクト化済') return 'bg-indigo-100 text-indigo-800';
+                    if (status === '検討中') return 'bg-yellow-100 text-yellow-800';
+                    return 'bg-gray-100 text-gray-800';
+                }
+            }
+        }
+    </script>
+</body>
+</html>
+
