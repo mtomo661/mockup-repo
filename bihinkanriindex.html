@@ -6,6 +6,7 @@
     <title>物品貸出管理アプリ</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body {
@@ -22,6 +23,20 @@
             border: 2px dashed #ccc;
             border-radius: 8px;
             overflow: hidden;
+        }
+        /* QRコード表示領域のスタイリング */
+        #qrcode-display {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+            background: #f9f9f9;
+            border-radius: 8px;
+            border: 1px solid #eee;
+            min-height: 288px; /* 256px + padding */
+        }
+        #qrcode-display canvas {
+            border-radius: 4px;
         }
     </style>
 </head>
@@ -57,10 +72,29 @@
             <!-- 物品一覧 -->
             <section id="item-list-section" class="bg-white p-6 rounded-lg shadow-md fade-in">
                 <h2 class="text-2xl font-semibold mb-4 border-b pb-2">物品一覧</h2>
-                <div id="item-list" class="space-y-4">
-                    <!-- 貸出アイテムがここに表示されます -->
+
+                <!-- タブUI -->
+                <div class="mb-4 border-b border-gray-200">
+                    <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                        <button id="tab-available" class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-indigo-500 text-indigo-600">
+                            貸出可能
+                        </button>
+                        <button id="tab-lending" class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                            貸出中
+                        </button>
+                    </nav>
                 </div>
-                <p id="no-items" class="text-gray-500 hidden">該当する物品はありません。</p>
+
+                <!-- タブコンテンツ -->
+                <div id="tab-content-available" class="tab-content space-y-4">
+                    <!-- 貸出可能アイテム -->
+                    <p id="no-available-items" class="text-gray-500 hidden">該当する物品はありません。</p>
+                </div>
+                <div id="tab-content-lending" class="tab-content space-y-4 hidden">
+                    <!-- 貸出中アイテム -->
+                    <p id="no-lending-items" class="text-gray-500 hidden">該当する物品はありません。</p>
+                </div>
+
             </section>
         </main>
 
@@ -190,6 +224,22 @@
         </div>
     </div>
 
+    <!-- QRコード表示モーダル (新規追加) -->
+    <div id="qr-code-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden fade-in">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-xs">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4 border-b pb-2">
+                    <h2 id="qr-code-modal-title" class="text-xl font-semibold">物品QRコード</h2>
+                    <button id="close-qr-code-modal-btn" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+                </div>
+                <div id="qrcode-display" class="w-full h-auto">
+                    <!-- QRコードはここにJSで生成されます -->
+                </div>
+                <p class="text-center text-sm text-gray-500 mt-4">このコードをスキャンして貸出・返却を行います。</p>
+            </div>
+        </div>
+    </div>
+
     <!-- QRリーダーモーダル -->
     <div id="qr-reader-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden fade-in">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-sm">
@@ -229,9 +279,16 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             // --- DOM要素取得 ---
-            const itemListEl = document.getElementById('item-list');
-            const noItemsEl = document.getElementById('no-items');
+            const itemListSection = document.getElementById('item-list-section');
             const searchBoxEl = document.getElementById('search-box');
+
+            // タブ関連
+            const tabAvailableBtn = document.getElementById('tab-available');
+            const tabLendingBtn = document.getElementById('tab-lending');
+            const tabContentAvailable = document.getElementById('tab-content-available');
+            const tabContentLending = document.getElementById('tab-content-lending');
+            const noAvailableItemsEl = document.getElementById('no-available-items');
+            const noLendingItemsEl = document.getElementById('no-lending-items');
             
             // モーダル関連
             const addItemModal = document.getElementById('add-item-modal');
@@ -250,6 +307,12 @@
             const deleteConfirmModal = document.getElementById('delete-confirm-modal');
             const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
             const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+
+            const qrCodeModal = document.getElementById('qr-code-modal'); // 新規
+            const closeQrCodeModalBtn = document.getElementById('close-qr-code-modal-btn'); // 新規
+            const qrCodeModalTitleEl = document.getElementById('qr-code-modal-title'); // 新規
+            const qrcodeDisplayEl = document.getElementById('qrcode-display'); // 新規
+            let qrCodeInstance = null; // QRコードのインスタンスを保持
 
             const qrReaderModal = document.getElementById('qr-reader-modal');
             const scanQrBtn = document.getElementById('scan-qr-btn');
@@ -276,8 +339,8 @@
                 { itemId: 'ITEM-004', name: 'HDMIケーブル', category: 'ケーブル', totalQuantity: 10, availableQuantity: 8 }
             ];
             let rentalRecords = [
-                { recordId: 1, itemId: 'ITEM-001', borrower: '鈴木 一郎', rentalDate: '2025-10-06', dueDate: '2025-11-10', quantity: 1, returnDate: null },
-                { recordId: 2, itemId: 'ITEM-002', borrower: '佐藤 花子', rentalDate: '2025-10-07', dueDate: '2025-11-08', quantity: 1, returnDate: null },
+                { recordId: 1, itemId: 'ITEM-001', borrower: '鈴木 一郎', rentalDate: '2025-10-06', dueDate: '2025-10-10', quantity: 1, returnDate: null },
+                { recordId: 2, itemId: 'ITEM-002', borrower: '佐藤 花子', rentalDate: '2025-10-07', dueDate: '2025-10-08', quantity: 1, returnDate: null },
                 { recordId: 3, itemId: 'ITEM-004', borrower: '高橋 健太', rentalDate: '2025-10-08', dueDate: '2025-10-15', quantity: 2, returnDate: null }
             ];
             let nextItemId = 5;
@@ -289,9 +352,13 @@
 
             // --- 表示関連 ---
             function renderList() {
-                itemListEl.innerHTML = '';
+                // 古いカードを削除（「該当なし」のpタグは残す）
+                tabContentAvailable.querySelectorAll('.border.rounded-lg').forEach(el => el.remove());
+                tabContentLending.querySelectorAll('.border.rounded-lg').forEach(el => el.remove());
+
                 const searchTerm = searchBoxEl.value.toLowerCase();
-                let hasVisibleItems = false;
+                let hasAvailableItems = false;
+                let hasLendingItems = false;
                 
                 managedItems.forEach(item => {
                     const activeRecords = rentalRecords.filter(r => r.itemId === item.itemId && r.returnDate === null);
@@ -301,8 +368,8 @@
                                     activeRecords.some(r => r.borrower.toLowerCase().includes(searchTerm));
 
                     if (!isMatch) return;
-                    hasVisibleItems = true;
 
+                    // --- カード生成ロジック (共通) ---
                     let status, statusColor, statusText;
                     if (item.availableQuantity === 0) {
                         status = 'lending'; statusColor = 'red'; statusText = '貸出中';
@@ -348,6 +415,9 @@
                                     </div>
                                 </div>
                                 <div class="flex-shrink-0 w-full md:w-auto mt-2 md:mt-0 flex items-center gap-2">
+                                    <button data-item-id="${item.itemId}" data-item-name="${escapeHTML(item.name)}" title="QRコードを表示" class="qr-code-btn p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-100 rounded-full transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /><path stroke-linecap="round" stroke-linejoin="round" d="M4 4h16v16H4z" /><path stroke-linecap="round" stroke-linejoin="round" d="M10 10h4v4h-4z" /></svg>
+                                    </button>
                                     <button data-item-id="${item.itemId}" ${item.availableQuantity === 0 ? 'disabled' : ''} class="lend-btn w-full md:w-auto bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed">貸出</button>
                                     <button data-item-id="${item.itemId}" ${isLentOut ? 'disabled' : ''} title="${isLentOut ? '貸出中の物品は削除できません' : '物品を削除'}" class="delete-btn p-2 text-gray-400 hover:text-red-600 hover:bg-red-100 rounded-full transition-colors disabled:cursor-not-allowed disabled:text-gray-300 disabled:hover:bg-transparent">
                                       <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
@@ -356,9 +426,20 @@
                             </div>
                             ${loansHtml}
                         </div>`;
-                    itemListEl.innerHTML += card;
+                    // --- カード生成ロジックここまで ---
+
+                    // 振り分け
+                    if (item.availableQuantity > 0) {
+                        hasAvailableItems = true;
+                        tabContentAvailable.insertAdjacentHTML('beforeend', card);
+                    } else if (item.totalQuantity > 0) { // availableQuantityが0でtotalが0より大きい
+                        hasLendingItems = true;
+                        tabContentLending.insertAdjacentHTML('beforeend', card);
+                    }
                 });
-                noItemsEl.classList.toggle('hidden', hasVisibleItems);
+                
+                noAvailableItemsEl.classList.toggle('hidden', hasAvailableItems);
+                noLendingItemsEl.classList.toggle('hidden', hasLendingItems);
             }
 
             // --- イベントハンドラ ---
@@ -437,16 +518,20 @@
                 deleteConfirmModal.classList.add('hidden');
             });
 
-            itemListEl.addEventListener('click', (e) => {
+            // イベントデリゲーションをitemListSection（タブコンテンツの親）に設定
+            itemListSection.addEventListener('click', (e) => {
                 const target = e.target.closest('button');
-                if (!target) return;
-
+                if (!target) return; // ボタン以外へのクリックは無視
+                
+                // ボタンの種類を判定
                 if (target.classList.contains('lend-btn')) {
                     openLendingModal(target.dataset.itemId);
                 } else if (target.classList.contains('return-btn')) {
                     openReturnModal(target.dataset.recordId);
                 } else if (target.classList.contains('delete-btn')) {
                     openDeleteConfirmModal(target.dataset.itemId);
+                } else if (target.classList.contains('qr-code-btn')) { // 新規
+                    openQrCodeModal(target.dataset.itemId, target.dataset.itemName);
                 }
             });
 
@@ -492,6 +577,29 @@
                  qrReaderModal.classList.add('hidden');
             }
 
+            // --- タブ切り替え ---
+            tabAvailableBtn.addEventListener('click', () => {
+                tabAvailableBtn.classList.add('border-indigo-500', 'text-indigo-600');
+                tabAvailableBtn.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+                
+                tabLendingBtn.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+                tabLendingBtn.classList.remove('border-indigo-500', 'text-indigo-600');
+                
+                tabContentAvailable.classList.remove('hidden');
+                tabContentLending.classList.add('hidden');
+            });
+
+            tabLendingBtn.addEventListener('click', () => {
+                tabLendingBtn.classList.add('border-indigo-500', 'text-indigo-600');
+                tabLendingBtn.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+                
+                tabAvailableBtn.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+                tabAvailableBtn.classList.remove('border-indigo-500', 'text-indigo-600');
+                
+                tabContentLending.classList.remove('hidden');
+                tabContentAvailable.classList.add('hidden');
+            });
+
             // --- モーダル制御 ---
             function openLendingModal(itemId) {
                 const item = managedItems.find(i => i.itemId === itemId);
@@ -521,6 +629,29 @@
                 messageEl.textContent = `「${escapeHTML(item.name)}」をシステムから完全に削除します。この操作は元に戻せません。`;
                 confirmDeleteBtn.dataset.itemId = itemId;
                 deleteConfirmModal.classList.remove('hidden');
+            }
+            
+            // 新規: QRコード表示モーダルを開く
+            function openQrCodeModal(itemId, itemName) {
+                qrCodeModalTitleEl.textContent = itemName;
+                qrcodeDisplayEl.innerHTML = ''; // 既存のQRコードをクリア
+                
+                // qrcode.jsライブラリを使ってQRコードを生成
+                try {
+                    new QRCode(qrcodeDisplayEl, {
+                        text: itemId,
+                        width: 256,
+                        height: 256,
+                        colorDark : "#000000",
+                        colorLight : "#ffffff",
+                        correctLevel : QRCode.CorrectLevel.H
+                    });
+                } catch (e) {
+                    console.error("QRコードの生成に失敗しました:", e);
+                    qrcodeDisplayEl.textContent = "QRコードの生成に失敗しました。";
+                }
+                
+                qrCodeModal.classList.remove('hidden');
             }
 
             function openQrResultModal(itemId) {
@@ -579,6 +710,7 @@
             setupModal(lendingModal, null, closeLendingModalBtn);
             setupModal(returnModal, null, closeReturnModalBtn);
             setupModal(deleteConfirmModal, null, cancelDeleteBtn);
+            setupModal(qrCodeModal, null, closeQrCodeModalBtn); // 新規
             setupModal(qrReaderModal, null, closeQrReaderBtn, stopQrScanner);
             setupModal(qrResultModal, null, closeQrResultModalBtn);
             
@@ -655,5 +787,4 @@
 
 </body>
 </html>
-
 
